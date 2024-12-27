@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.py[cod]
+*.db
+*.log
+*.tmp
+*.temp
+*.swp
+message.json
+test.json

@@ -7,6 +7,10 @@ import aiohttp
 from bs4 import BeautifulSoup
 from functools import cache
 from urllib.parse import urljoin
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @cache
 async def get_favicon_url(session, website_url):
@@ -39,7 +43,7 @@ async def get_favicon_url(session, website_url):
                 
                 return None
     except aiohttp.ClientError as e:
-        print(f"Error fetching the favicon: {e}")
+        logging.error(f"Error fetching the favicon: {e}")
         return None
 
 async def fetch_favicons(news_list):
@@ -53,35 +57,45 @@ async def fetch_favicons(news_list):
             r['favicon'] = favicon
 
 def initialize_db():
-    conn = sqlite3.connect('news.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS news (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT,
-            title TEXT,
-            url TEXT UNIQUE,
-            image TEXT,
-            source TEXT,
-            favicon TEXT,
-            body TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('news.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS news (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT,
+                title TEXT,
+                url TEXT UNIQUE,
+                image TEXT,
+                source TEXT,
+                favicon TEXT,
+                body TEXT
+            )
+        ''')
+        conn.commit()
+        logging.info("Database initialized successfully.")
+    except sqlite3.Error as e:
+        logging.error(f"Error initializing the database: {e}")
+    finally:
+        conn.close()
 
 def insert_news(news_list):
-    conn = sqlite3.connect('news.db')
-    cursor = conn.cursor()
-    for news in news_list:
-        try:
-            cursor.execute('''
-                INSERT INTO news (date, title, url, image, source, favicon, body) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (news.get('date'), news.get('title'), news.get('url'), news.get('image'), news.get('source'), news.get('favicon'), news.get('body')))
-        except sqlite3.IntegrityError:
-            print(f"Duplicate entry found for URL: {news['url']}")
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('news.db')
+        cursor = conn.cursor()
+        for news in news_list:
+            try:
+                cursor.execute('''
+                    INSERT INTO news (date, title, url, image, source, favicon, body) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (news.get('date'), news.get('title'), news.get('url'), news.get('image'), news.get('source'), news.get('favicon'), news.get('body')))
+            except sqlite3.IntegrityError:
+                logging.warning(f"Duplicate entry found for URL: {news['url']}")
+        conn.commit()
+        logging.info("News inserted successfully.")
+    except sqlite3.Error as e:
+        logging.error(f"Error inserting news into the database: {e}")
+    finally:
+        conn.close()
 
 def search(keywords, timelimit, results):
     news_list = []
@@ -128,7 +142,7 @@ Miscellaneous""".split("\n")
 
     threads = []
     for category in Cat:
-        print(f"Processing category: {category}")
+        logging.info(f"Processing category: {category}")
         # Create a new thread for each category
         thread = threading.Thread(target=worker, args=(category, "10", 1000))
         threads.append(thread)
@@ -138,4 +152,4 @@ Miscellaneous""".split("\n")
     for thread in threads:
         thread.join()
 
-    print("Processing complete.")
+    logging.info("Processing complete.")
